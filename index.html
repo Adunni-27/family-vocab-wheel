@@ -223,7 +223,12 @@ socket.on('myResult', ({ correct, score, streak, noAnswer }) => {
   if(noAnswer){
     flash.innerHTML = '<div class="rf-emoji">⏰</div><div class="rf-pts" style="color:#fbbf24">Time up!</div>';
   } else if(correct){
-    flash.innerHTML = `<div class="rf-emoji">✅</div><div class="rf-pts" style="color:#4ade80">${streak>=3?'🔥 '+streak+' streak! ':''}+${score} pts</div>`;
+    flash.innerHTML =
+  `<div class="rf-emoji">✅</div>
+   <div class="rf-pts" style="color:#4ade80">
+     ${streak>=3 ? '🔥 '+streak+' streak! ' : ''}
+     +100 pts
+   </div>`;
   } else {
     flash.innerHTML = '<div class="rf-emoji">❌</div><div class="rf-pts" style="color:#f87171">Try next one!</div>';
   }
