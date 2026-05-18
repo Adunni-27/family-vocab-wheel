@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎡 Family Vocab – Play!</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#0d7fa5 0%,#1565A0 50%,#0d4f7c 100%);min-height:100vh;color:#fff;}
+
+.screen{display:none;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:2rem;}
+.screen.active{display:flex;}
+
+/* JOIN */
+.join-card{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:20px;padding:2.5rem 2rem;max-width:380px;width:100%;text-align:center;}
+.join-logo{font-size:4rem;margin-bottom:.4rem;}
+.join-title{font-size:1.8rem;font-weight:900;margin-bottom:.3rem;}
+.join-sub{font-size:.9rem;opacity:.75;margin-bottom:1.6rem;}
+.name-input{width:100%;padding:14px;border-radius:12px;border:2px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:1.1rem;font-weight:600;text-align:center;margin-bottom:1rem;outline:none;}
+.name-input::placeholder{color:rgba(255,255,255,0.5);}
+.name-input:focus{border-color:#FFD700;}
+.join-btn{width:100%;padding:14px;border:none;border-radius:12px;background:#FFD700;color:#0d3d5c;font-size:1.1rem;font-weight:800;cursor:pointer;}
+.join-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* LOBBY WAIT */
+.wait-emoji{font-size:4rem;animation:bounce 1.5s infinite;}
+@keyframes bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+.wait-title{font-size:1.4rem;font-weight:800;margin:.6rem 0 .3rem;}
+.wait-sub{font-size:.9rem;opacity:.75;}
+.player-name-badge{background:#FFD700;color:#0d3d5c;font-weight:800;padding:6px 18px;border-radius:50px;font-size:1rem;margin-top:1rem;}
+
+/* ANSWERING */
+#screen-answer{justify-content:flex-start;padding:0;}
+.answer-top{width:100%;background:rgba(0,0,0,0.3);padding:10px 16px;display:flex;justify-content:space-between;align-items:center;}
+.a-name{font-size:.9rem;font-weight:700;}
+.a-score{font-size:.9rem;color:#FFD700;font-weight:700;}
+.timer-wrap{width:100%;padding:0 16px;margin-top:8px;}
+.timer-bar-outer{background:rgba(255,255,255,0.2);border-radius:50px;height:8px;}
+.timer-bar-inner{height:8px;border-radius:50px;background:#FFD700;transition:width 1s linear;}
+.timer-num{text-align:center;font-size:1rem;font-weight:700;margin-top:4px;color:#FFD700;}
+
+.q-section{width:100%;text-align:center;padding:16px 16px 8px;}
+.q-emoji{font-size:3rem;margin-bottom:.3rem;}
+.q-word{font-size:2rem;font-weight:900;}
+.q-hint{font-size:.85rem;opacity:.7;margin-top:.2rem;}
+
+.options{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;padding:10px 16px 16px;}
+.opt{padding:18px 10px;border-radius:14px;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;line-height:1.3;}
+.opt:hover:not(:disabled){background:rgba(255,255,255,0.28);transform:translateY(-2px);}
+.opt:disabled{cursor:default;transform:none;}
+.opt.correct{background:#4ade80;border-color:#4ade80;color:#052e16;}
+.opt.wrong{background:#f87171;border-color:#f87171;color:#450a0a;}
+.opt.reveal{background:rgba(74,222,128,0.25);border-color:#4ade80;}
+
+/* RESULT FLASH */
+.result-flash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;pointer-events:none;animation:flashIn .6s forwards;}
+@keyframes flashIn{0%{opacity:0;transform:scale(.5);}30%{opacity:1;transform:scale(1.1);}70%{opacity:1;}100%{opacity:0;}}
+.rf-emoji{font-size:4rem;}
+.rf-pts{font-size:1.5rem;font-weight:900;margin-top:.3rem;}
+
+/* WAITING FOR NEXT */
+.waiting-next{text-align:center;}
+.wn-emoji{font-size:3rem;animation:spin 2s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.wn-txt{font-size:1rem;opacity:.8;margin-top:.5rem;}
+.my-score{font-size:2rem;font-weight:900;color:#FFD700;margin:.4rem 0;}
+
+/* GAME OVER */
+.go-card{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:20px;padding:2rem;max-width:380px;width:100%;text-align:center;}
+.go-trophy{font-size:4rem;margin-bottom:.4rem;}
+.go-name{font-size:1rem;opacity:.8;}
+.go-score{font-size:3rem;font-weight:900;color:#FFD700;margin:.4rem 0;}
+.go-stars{font-size:2rem;margin-bottom:.4rem;}
+.go-msg{font-size:.95rem;opacity:.8;margin-bottom:1.2rem;}
+.go-breakdown{background:rgba(255,255,255,0.1);border-radius:12px;padding:.8rem 1rem;text-align:left;margin-bottom:1rem;}
+.go-row{display:flex;justify-content:space-between;font-size:.88rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.1);}
+.go-row:last-child{border:none;font-weight:700;}
+.go-val{color:#FFD700;font-weight:700;}
+</style>
+</head>
+<body>
+
+<!-- JOIN -->
+<div class="screen active" id="screen-join">
+  <div class="join-card">
+    <div class="join-logo">🎡</div>
+    <div class="join-title">Family Vocab!</div>
+    <div class="join-sub">Enter your name to join the game</div>
+    <input class="name-input" id="name-input" type="text" placeholder="Your name..." maxlength="20" autocomplete="off"/>
+    <button class="join-btn" id="join-btn" onclick="joinGame()" disabled>Join Game 🎉</button>
+  </div>
+</div>
+
+<!-- LOBBY WAIT -->
+<div class="screen" id="screen-lobby">
+  <div class="wait-emoji">🎡</div>
+  <div class="wait-title">You're in!</div>
+  <div class="wait-sub">Waiting for the teacher to start...</div>
+  <div class="player-name-badge" id="lobby-name"></div>
+</div>
+
+<!-- ANSWERING -->
+<div class="screen" id="screen-answer">
+  <div class="answer-top">
+    <div class="a-name" id="a-name"></div>
+    <div class="a-score">⭐ <span id="a-score">0</span></div>
+  </div>
+  <div class="timer-wrap">
+    <div class="timer-bar-outer"><div class="timer-bar-inner" id="t-bar" style="width:100%"></div></div>
+    <div class="timer-num" id="t-num">15</div>
+  </div>
+  <div class="q-section">
+    <div class="q-emoji" id="a-emoji"></div>
+    <div class="q-word" id="a-word"></div>
+    <div class="q-hint" id="a-hint"></div>
+  </div>
+  <div class="options" id="opts"></div>
+</div>
+
+<!-- WAITING FOR NEXT ROUND -->
+<div class="screen" id="screen-wait">
+  <div class="waiting-next">
+    <div class="wn-emoji">⏳</div>
+    <div class="wn-txt">Waiting for next spin...</div>
+    <div class="my-score">⭐ <span id="w-score">0</span> pts</div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="screen" id="screen-gameover">
+  <div class="go-card">
+    <div class="go-trophy" id="go-trophy"></div>
+    <div class="go-name" id="go-name"></div>
+    <div class="go-score" id="go-score"></div>
+    <div class="go-stars" id="go-stars"></div>
+    <div class="go-msg" id="go-msg"></div>
+    <div class="go-breakdown" id="go-breakdown"></div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let playerName = '', myScore = 0, myStreak = 0, myCorrect = 0, myWrong = 0;
+let answered = false;
+
+document.getElementById('name-input').addEventListener('input', function(){
+  document.getElementById('join-btn').disabled = this.value.trim().length < 2;
+});
+document.getElementById('name-input').addEventListener('keydown', function(e){
+  if(e.key==='Enter' && this.value.trim().length>=2) joinGame();
+});
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function joinGame(){
+  playerName = document.getElementById('name-input').value.trim();
+  if(playerName.length<2) return;
+  socket.emit('joinGame', { name: playerName });
+  document.getElementById('lobby-name').textContent = playerName;
+  document.getElementById('a-name').textContent = '🎡 ' + playerName;
+  showScreen('screen-lobby');
+}
+
+socket.on('newRound', ({ word, emoji, options, timeLeft }) => {
+  answered = false;
+  document.getElementById('a-emoji').textContent = emoji;
+  document.getElementById('a-word').textContent = word;
+  document.getElementById('a-score').textContent = myScore;
+
+  const opts = document.getElementById('opts');
+  opts.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.textContent = opt;
+    btn.onclick = () => submitAnswer(opt, btn, options, word);
+    opts.appendChild(btn);
+  });
+
+  // Timer reset
+  document.getElementById('t-bar').style.transition = 'none';
+  document.getElementById('t-bar').style.width = '100%';
+  document.getElementById('t-bar').style.background = '#FFD700';
+  setTimeout(() => {
+    document.getElementById('t-bar').style.transition = 'width 1s linear';
+  }, 50);
+
+  showScreen('screen-answer');
+});
+
+socket.on('timer', ({ timeLeft }) => {
+  document.getElementById('t-num').textContent = timeLeft;
+  document.getElementById('t-bar').style.width = (timeLeft / 15 * 100) + '%';
+  if(timeLeft <= 5) document.getElementById('t-bar').style.background = '#f87171';
+});
+
+function submitAnswer(answer, btn, options, word) {
+  if(answered) return;
+  answered = true;
+  socket.emit('submitAnswer', { answer });
+  document.querySelectorAll('.opt').forEach(b => b.disabled = true);
+  btn.classList.add('answered');
+}
+
+socket.on('myResult', ({ correct, score, streak, noAnswer }) => {
+  myScore = score; myStreak = streak;
+  if(correct) myCorrect++; else if(!noAnswer) myWrong++;
+  document.getElementById('a-score').textContent = myScore;
+  document.getElementById('w-score').textContent = myScore;
+
+  // Show result on answer options
+  document.querySelectorAll('.opt').forEach(btn => {
+    if(!answered) return;
+  });
+
+  // Flash
+  const flash = document.createElement('div');
+  flash.className = 'result-flash';
+  if(noAnswer){
+    flash.innerHTML = '<div class="rf-emoji">⏰</div><div class="rf-pts" style="color:#fbbf24">Time up!</div>';
+  } else if(correct){
+    flash.innerHTML = `<div class="rf-emoji">✅</div><div class="rf-pts" style="color:#4ade80">${streak>=3?'🔥 '+streak+' streak! ':''}+${score} pts</div>`;
+  } else {
+    flash.innerHTML = '<div class="rf-emoji">❌</div><div class="rf-pts" style="color:#f87171">Try next one!</div>';
+  }
+  document.body.appendChild(flash);
+  setTimeout(()=>{
+    flash.remove();
+    showScreen('screen-wait');
+    document.getElementById('w-score').textContent = myScore;
+  }, 800);
+});
+
+socket.on('gameOver', ({ leaderboard }) => {
+  const me = leaderboard.find(p => p.name === playerName);
+  const total = leaderboard.length;
+  const rank = me ? me.rank : total;
+  const pct = myCorrect / Math.max(1, myCorrect + myWrong) * 100;
+  const stars = pct >= 90 ? '⭐⭐⭐' : pct >= 70 ? '⭐⭐' : pct >= 50 ? '⭐' : '🌱';
+  const trophy = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🎈';
+  const msg = rank === 1 ? `Amazing ${playerName}! You came 1st!` :
+              rank <= 3 ? `Great job ${playerName}! You came #${rank}!` :
+              `Well done ${playerName}! Keep practising!`;
+
+  document.getElementById('go-trophy').textContent = trophy;
+  document.getElementById('go-name').textContent = playerName + "'s Results";
+  document.getElementById('go-score').textContent = myScore + ' pts';
+  document.getElementById('go-stars').textContent = stars;
+  document.getElementById('go-msg').textContent = msg;
+  document.getElementById('go-breakdown').innerHTML = `
+    <div class="go-row"><span>✅ Correct</span><span class="go-val">${myCorrect}</span></div>
+    <div class="go-row"><span>❌ Wrong</span><span class="go-val">${myWrong}</span></div>
+    <div class="go-row"><span>🔥 Best streak</span><span class="go-val">${myStreak}</span></div>
+    <div class="go-row"><span>🏅 Rank</span><span class="go-val">#${rank} of ${total}</span></div>
+    <div class="go-row"><span>🎯 Total points</span><span class="go-val">${myScore}</span></div>`;
+  showScreen('screen-gameover');
+});
+
+socket.on('reset', () => location.reload());
+</script>
+</body>
+</html>
