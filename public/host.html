@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎡 Family Vocab – Host</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#0d7fa5 0%,#1565A0 50%,#0d4f7c 100%);min-height:100vh;color:#fff;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:rgba(0,0,0,0.35);flex-wrap:wrap;gap:8px;}
+nav h1{font-size:1.1rem;font-weight:800;}
+.nav-btns{display:flex;gap:8px;}
+.btn{padding:8px 18px;border-radius:50px;font-size:.85rem;font-weight:700;cursor:pointer;border:none;transition:all .15s;}
+.btn-yellow{background:#FFD700;color:#0d3d5c;}
+.btn-yellow:hover{background:#ffe033;}
+.btn-outline{background:rgba(255,255,255,0.12);color:#fff;border:1.5px solid rgba(255,255,255,0.4);}
+.btn-outline:hover{background:rgba(255,255,255,0.24);}
+.btn-red{background:#e74c3c;color:#fff;}
+.btn-red:hover{background:#c0392b;}
+
+.container{max-width:1100px;margin:0 auto;padding:16px;}
+.layout{display:grid;grid-template-columns:1fr 320px;gap:16px;}
+@media(max-width:750px){.layout{grid-template-columns:1fr;}}
+
+/* WHEEL PANEL */
+.panel{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);border-radius:16px;padding:1.2rem;}
+.panel-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;opacity:.6;margin-bottom:.8rem;}
+
+.wheel-wrap{position:relative;display:flex;justify-content:center;margin-bottom:1rem;}
+canvas{border-radius:50%;box-shadow:0 6px 28px rgba(0,0,0,0.4);}
+.pointer{position:absolute;top:-16px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:28px solid #FFD700;filter:drop-shadow(0 2px 5px rgba(0,0,0,.4));}
+
+.spin-btn{width:100%;padding:14px;background:#FFD700;color:#0d3d5c;border:none;border-radius:12px;font-size:1.1rem;font-weight:800;cursor:pointer;transition:all .15s;margin-bottom:.8rem;}
+.spin-btn:hover{background:#ffe033;transform:scale(1.02);}
+.spin-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* CURRENT QUESTION */
+.q-box{background:rgba(255,255,255,0.18);border-radius:12px;padding:1rem;text-align:center;margin-bottom:.8rem;}
+.q-emoji{font-size:2.5rem;}
+.q-word{font-size:1.8rem;font-weight:900;margin:.2rem 0;}
+.q-hint{font-size:.85rem;opacity:.75;}
+
+/* TIMER */
+.timer-row{display:flex;align-items:center;gap:10px;margin-bottom:.8rem;}
+.timer-num{font-size:1.5rem;font-weight:900;color:#FFD700;min-width:32px;}
+.timer-bar-wrap{flex:1;background:rgba(255,255,255,0.2);border-radius:50px;height:8px;}
+.timer-bar{height:8px;border-radius:50px;background:#FFD700;transition:width 1s linear;}
+.answer-count{font-size:.85rem;opacity:.75;text-align:center;margin-bottom:.8rem;}
+.answer-count span{font-weight:700;color:#FFD700;}
+
+/* OPTIONS REVEAL */
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.8rem;}
+.opt-box{border-radius:10px;padding:10px;text-align:center;font-size:.9rem;font-weight:600;border:2px solid transparent;}
+.opt-correct{background:rgba(74,222,128,0.3);border-color:#4ade80;color:#d1fae5;}
+.opt-wrong{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);}
+.opt-neutral{background:rgba(255,255,255,0.12);}
+
+/* REVEAL BTNS */
+.reveal-btns{display:flex;gap:8px;margin-bottom:.8rem;}
+
+/* RIGHT PANEL - LEADERBOARD */
+.lb-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;}
+.lb-count{font-size:.82rem;opacity:.65;}
+.lb-list{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto;}
+.lb-row{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.1);border-radius:10px;padding:8px 12px;transition:all .3s;}
+.lb-row.top1{background:rgba(255,215,0,0.25);border:1px solid rgba(255,215,0,0.5);}
+.lb-row.top2{background:rgba(192,192,192,0.2);}
+.lb-row.top3{background:rgba(205,127,50,0.2);}
+.lb-rank{font-size:1.1rem;min-width:28px;text-align:center;}
+.lb-name{flex:1;font-weight:600;font-size:.95rem;}
+.lb-score{font-weight:700;color:#FFD700;font-size:1rem;}
+.lb-streak{font-size:.75rem;opacity:.7;}
+
+/* LOBBY */
+.lobby-players{display:flex;flex-wrap:wrap;gap:8px;margin-top:.8rem;}
+.player-pill{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:50px;padding:6px 14px;font-size:.85rem;font-weight:600;}
+
+/* STATUS */
+.status-bar{text-align:center;padding:8px;background:rgba(0,0,0,0.2);font-size:.85rem;opacity:.75;border-radius:8px;margin-bottom:.8rem;}
+
+/* GAME OVER */
+.gameover{display:none;text-align:center;padding:1.5rem;}
+.gameover .trophy{font-size:3rem;}
+.gameover h2{font-size:1.4rem;font-weight:800;margin:.5rem 0;}
+</style>
+</head>
+<body>
+<nav>
+  <h1>🎡 Family Vocab Wheel — HOST</h1>
+  <div class="nav-btns">
+    <button class="btn btn-outline" onclick="endGame()">End Game</button>
+    <button class="btn btn-red" onclick="resetGame()">Reset</button>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="layout">
+    <!-- LEFT: WHEEL + QUESTION -->
+    <div>
+      <div class="panel" id="wheel-panel">
+        <div class="panel-title">Spin the wheel</div>
+        <div class="wheel-wrap">
+          <div class="pointer"></div>
+          <canvas id="wheel" width="300" height="300"></canvas>
+        </div>
+        <button class="spin-btn" id="spinBtn" onclick="doSpin()">🎲 Spin!</button>
+        <div class="status-bar" id="status-bar">Waiting for students to join...</div>
+
+        <!-- Current question -->
+        <div class="q-box" id="q-box" style="display:none">
+          <div class="q-emoji" id="q-emoji"></div>
+          <div class="q-word" id="q-word"></div>
+          <div class="q-hint" id="q-hint"></div>
+        </div>
+
+        <!-- Timer -->
+        <div class="timer-row" id="timer-row" style="display:none">
+          <div class="timer-num" id="timer-num">15</div>
+          <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+        </div>
+        <div class="answer-count" id="answer-count" style="display:none">
+          <span id="ans-done">0</span> of <span id="ans-total">0</span> students answered
+        </div>
+
+        <!-- Options (shown after reveal) -->
+        <div class="options-grid" id="options-grid" style="display:none"></div>
+
+        <div class="reveal-btns" id="reveal-btns" style="display:none">
+          <button class="btn btn-yellow" style="flex:1" onclick="doSpin()">Next spin 🎲</button>
+          <button class="btn btn-outline" style="flex:1" onclick="endGame()">End & show results</button>
+        </div>
+      </div>
+
+      <!-- Lobby players -->
+      <div class="panel" id="lobby-panel" style="margin-top:12px;">
+        <div class="panel-title">Students joined (<span id="player-count">0</span>)</div>
+        <div class="lobby-players" id="lobby-players"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: LEADERBOARD -->
+    <div class="panel">
+      <div class="lb-header">
+        <div class="panel-title" style="margin:0">🏆 Live Leaderboard</div>
+        <div class="lb-count" id="lb-count">0 players</div>
+      </div>
+      <div class="lb-list" id="lb-list">
+        <div style="text-align:center;opacity:.5;font-size:.85rem;margin-top:1rem;">Waiting for players...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+
+const VOCAB = [
+  {word:'Father',emoji:'👨',hint:'He is your parent'},
+  {word:'Mother',emoji:'👩',hint:'She is your parent'},
+  {word:'Brother',emoji:'👦',hint:'He is your sibling'},
+  {word:'Sister',emoji:'👧',hint:'She is your sibling'},
+  {word:'Baby',emoji:'👶',hint:'The youngest in the family'},
+  {word:'Grandfather',emoji:'👴',hint:"Your father's or mother's father"},
+  {word:'Grandmother',emoji:'👵',hint:"Your father's or mother's mother"},
+  {word:'Parents',emoji:'👨‍👩‍',hint:'Your father and mother together'},
+  {word:'Aunt',emoji:'👩‍🦱',hint:"Your parent's sister"},
+  {word:'Uncle',emoji:'🧔',hint:"Your parent's brother"},
+  {word:'Nephew',emoji:'🧒',hint:"Your sibling's son"},
+  {word:'Siblings',emoji:'👫',hint:'Your brothers and sisters'},
+  {word:'Cousin',emoji:'🧑',hint:"Your aunt or uncle's child"},
+  {word:'Niece',emoji:'👧🏽',hint:"Your sibling's daughter"},
+  {word:'Twins',emoji:'👯',hint:'Two siblings born at the same time'},
+  {word:'Triplets',emoji:'👨‍👧‍👦',hint:'Three siblings born at the same time'},
+  {word:'Grandchildren',emoji:'👧👦',hint:"Your grandparents' grandchildren"},
+  {word:'House',emoji:'🏠',hint:'Where your family lives'},
+];
+
+const COLORS=['#e74c3c','#e67e22','#f39c12','#27ae60','#9b59b6','#e91e9a','#00bcd4','#ff5722','#8bc34a','#3f51b5','#16a085','#c0392b','#2980b9','#8e44ad','#d35400','#27ae60','#e74c3c','#f39c12'];
+let wAngle=0,wSpinning=false,currentVocab=null;
+
+// Draw wheel
+function drawWheel(angle){
+  const cv=document.getElementById('wheel');
+  const ctx=cv.getContext('2d'),cx=150,cy=150,r=145,n=VOCAB.length,arc=2*Math.PI/n;
+  ctx.clearRect(0,0,300,300);
+  VOCAB.forEach((v,i)=>{
+    const s=angle+i*arc,e=s+arc;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,s,e);ctx.closePath();
+    ctx.fillStyle=COLORS[i%COLORS.length];ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(s+arc/2);
+    ctx.textAlign='right';ctx.fillStyle='#fff';ctx.font='bold 10px Segoe UI,Arial';
+    ctx.fillText(v.word,r-7,4);ctx.restore();
+  });
+  ctx.beginPath();ctx.arc(cx,cy,16,0,2*Math.PI);
+  ctx.fillStyle='#FFD700';ctx.fill();
+}
+
+function doSpin(){
+  if(wSpinning)return;
+  wSpinning=true;
+  document.getElementById('spinBtn').disabled=true;
+  document.getElementById('q-box').style.display='none';
+  document.getElementById('timer-row').style.display='none';
+  document.getElementById('answer-count').style.display='none';
+  document.getElementById('options-grid').style.display='none';
+  document.getElementById('reveal-btns').style.display='none';
+  document.getElementById('status-bar').textContent='Spinning...';
+
+  const total=(5+Math.random()*6)*2*Math.PI,dur=3500,t0=performance.now(),a0=wAngle;
+  function anim(now){
+    const t=Math.min((now-t0)/dur,1),ease=1-Math.pow(1-t,4);
+    wAngle=a0+total*ease; drawWheel(wAngle);
+    if(t<1){requestAnimationFrame(anim);}
+    else{
+      wSpinning=false;
+      const n=VOCAB.length,arc=2*Math.PI/n;
+      const norm=((-(wAngle+Math.PI/2))%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+      const idx=Math.floor(norm/arc)%n;
+      currentVocab=VOCAB[idx];
+      // Tell server
+      socket.emit('spinResult',{word:currentVocab.word,emoji:currentVocab.emoji});
+      // Show question
+      document.getElementById('q-emoji').textContent=currentVocab.emoji;
+      document.getElementById('q-word').textContent=currentVocab.word;
+      document.getElementById('q-hint').textContent=currentVocab.hint;
+      document.getElementById('q-box').style.display='block';
+      document.getElementById('timer-row').style.display='flex';
+      document.getElementById('answer-count').style.display='block';
+      document.getElementById('status-bar').textContent='Students are answering...';
+    }
+  }
+  requestAnimationFrame(anim);
+}
+
+function endGame(){ socket.emit('endGame'); }
+function resetGame(){ if(confirm('Reset game and clear all scores?')) socket.emit('resetGame'); }
+
+// Timer
+socket.on('timer',({timeLeft})=>{
+  document.getElementById('timer-num').textContent=timeLeft;
+  document.getElementById('timer-bar').style.width=(timeLeft/15*100)+'%';
+  if(timeLeft<=5) document.getElementById('timer-bar').style.background='#f87171';
+  else document.getElementById('timer-bar').style.background='#FFD700';
+});
+
+// Answer count
+socket.on('answerCount',({count,total})=>{
+  document.getElementById('ans-done').textContent=count;
+  document.getElementById('ans-total').textContent=total;
+});
+
+// Reveal
+socket.on('reveal',({correctAnswer,leaderboard})=>{
+  document.getElementById('spinBtn').disabled=false;
+  document.getElementById('status-bar').textContent='Round complete! Spin again or end game.';
+  document.getElementById('reveal-btns').style.display='flex';
+  // Show options
+  const grid=document.getElementById('options-grid');
+  if(currentVocab){
+    const wrong=VOCAB.filter(v=>v.word!==currentVocab.word).slice(0,3).map(v=>v.word);
+    const opts=[correctAnswer,...wrong];
+    grid.innerHTML=opts.map(o=>`
+      <div class="opt-box ${o===correctAnswer?'opt-correct':'opt-wrong'}">
+        ${o===correctAnswer?'✅ ':'❌ '}${o}
+      </div>`).join('');
+    grid.style.display='grid';
+  }
+  updateLeaderboard(leaderboard);
+});
+
+// Player list
+socket.on('playerList',(lb)=>{
+  updateLeaderboard(lb);
+  const pills=document.getElementById('lobby-players');
+  document.getElementById('player-count').textContent=lb.length;
+  document.getElementById('lb-count').textContent=lb.length+' player'+(lb.length!==1?'s':'');
+  pills.innerHTML=lb.map(p=>`<div class="player-pill">${p.name}</div>`).join('');
+  if(lb.length>0) document.getElementById('status-bar').textContent=lb.length+' student'+(lb.length!==1?'s':'')+' joined. Spin when ready!';
+});
+
+// Game over
+socket.on('gameOver',({leaderboard})=>{
+  document.getElementById('spinBtn').disabled=true;
+  document.getElementById('status-bar').textContent='Game over! See final results below.';
+  updateLeaderboard(leaderboard);
+});
+
+socket.on('reset',()=>{ location.reload(); });
+
+function updateLeaderboard(lb){
+  const el=document.getElementById('lb-list');
+  if(!lb||lb.length===0){el.innerHTML='<div style="text-align:center;opacity:.5;font-size:.85rem;margin-top:1rem;">Waiting for players...</div>';return;}
+  const medals=['🥇','🥈','🥉'];
+  el.innerHTML=lb.map((p,i)=>`
+    <div class="lb-row ${i===0?'top1':i===1?'top2':i===2?'top3':''}">
+      <div class="lb-rank">${medals[i]||i+1}</div>
+      <div class="lb-name">${p.name}</div>
+      <div>
+        <div class="lb-score">${p.score} pts</div>
+        ${p.streak>=2?`<div class="lb-streak">🔥 ${p.streak} streak</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+drawWheel(0);
+</script>
+</body>
+</html>
