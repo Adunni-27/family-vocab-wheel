@@ -146,9 +146,18 @@ io.on('connection', (socket) => {
     gameState.roundAnswers = {};
     gameState.round++;
     // Build options: correct + 3 random wrong
-    const wrong = shuffle(VOCAB.filter(v => v.word !== word)).slice(0, 3).map(v => v.word);
-    gameState.options = shuffle([word, ...wrong]);
-    gameState.correctAnswer = word;
+   const correctVocab = VOCAB.find(v => v.word === word);
+
+const wrong = shuffle(VOCAB.filter(v => v.word !== word))
+  .slice(0, 3)
+  .map(v => v.hint);
+
+gameState.options = shuffle([
+  correctVocab.hint,
+  ...wrong
+]);
+
+gameState.correctAnswer = correctVocab.hint;
     io.emit('newRound', {
       word,
       emoji,
@@ -202,4 +211,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, "0.0.0.0", () =>
+  console.log(`Server running on port ${PORT}`)
+);
